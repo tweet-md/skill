@@ -1,7 +1,7 @@
 ---
 name: tweet-md
 description: "Gets X (Twitter) posts and threads as clean Markdown for LLMs via tweet.md. Use when the user wants to read, fetch, summarize, quote, or ingest an X post or thread (x.com/twitter.com link, tweet URL, or x.com→tweet.md rewrite) for an LLM, agent, or research. Also when they ask what's in a tweet/thread, to pull thread context, or to read replies in order."
-version: 1.0.0
+version: 1.1.0
 author: tweet.md
 license: MIT
 tags: [x, twitter, markdown, llm, agents, api, thread, conversion, rag]
