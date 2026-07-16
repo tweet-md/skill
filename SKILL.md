@@ -1,7 +1,7 @@
 ---
 name: tweet-md
 description: "Gets X (Twitter) posts and threads as clean Markdown for LLMs via tweet.md. Use when the user wants to read, fetch, summarize, quote, or ingest an X post or thread (x.com/twitter.com link, tweet URL, or x.com→tweet.md rewrite) for an LLM, agent, or research. Also when they ask what's in a tweet/thread, to pull full conversation context, or to read replies in order."
-version: 1.3.0
+version: 1.5.0
 author: tweet.md
 license: MIT
 tags: [x, twitter, markdown, llm, agents, api, thread, conversion, rag]
@@ -63,7 +63,7 @@ https://x.com/jack/status/20
 
 **Programmatic:** `twmd_key_...` via `Authorization: Bearer ...` or `?apikey=`.
 
-Free (no key): 5 single-post requests per IP per calendar month — `thread=off` and `userinfo=off` only. With a key, omitted `thread` / `userinfo` default to `ancestors-20` / `author`.
+No key: only the controlled demo posts and demo profile work (no charge) — any other resource returns `402` with a pointer to https://tweet.md/i/login. With a key, omitted `thread` / `userinfo` / `stats` / `metadata` default to `branch-15` / `author` / `on` / `on`.
 
 ## Pick `format`
 
@@ -79,21 +79,28 @@ Free (no key): 5 single-post requests per IP per calendar month — `thread=off`
 | Param | Default | Values |
 |-------|---------|--------|
 | `format` | `markdown` | `markdown`, `obsidian` |
-| `thread` | `off` (free); `ancestors-20` when paid and omitted | `off`, `ancestors[-N]`, `branch[-N]`, `all[-N]` (cap `2`–`500`, default N=20) |
-| `userinfo` | `off` (free); `author` when paid and omitted | `off`, `author`, `all` |
+| `thread` | `branch-15` | `off`, `ancestors[-N]`, `branch[-N]`, `all[-N]` (cap `2`–`500`, default N=20) |
+| `userinfo` | `author` | `off`, `author`, `all` |
+| `stats` | `on` | `off`, `root`, `on` |
+| `metadata` | `on` | `on`, `off` |
 | `apikey` | — (cookie in browser) | `twmd_key_...` or `Authorization: Bearer` |
 
 **Precedence:** URL param > per-key dashboard defaults (https://tweet.md/i/dashboard) > system defaults.
 
 - `thread=off` — single post only
 - `thread=ancestors-11` — opened post + up to 10 ancestors (reply chain up to the original post; cap includes the requested post)
-- `thread=branch-8` — ancestors first, then replies underneath the requested post (context-first cap)
+- `thread=branch-8` — ancestors first, then replies underneath the requested post. Fills upward before downward: with 12 posts above and cap 15, the 12 ancestors + your post load first, leaving 2 slots for replies below — no matter how many replies exist
 - `thread=all-200` — opened post + 199 most recent other conversation posts, including other people's reply branches (rendered oldest-first)
 - Aliases: `full` → `branch-20`, `conversation` → `all-20`, bare `N` → `branch-N`
-- `userinfo=author` — profile URL, avatar, bio, and public metrics (+2 credits per unique author; default when omitted with a key)  
-- `userinfo=all` — same author fields as `author` (+2 credits per unique author)
+- `userinfo=author` — profile URL, avatar, bio, and public metrics for the **root author only** (flat +2 credits; default when omitted with a key); other posts keep basic name/handle attribution
+- `userinfo=all` — the same rich author block for **every** author in the response (+2 credits per unique author)
+- `stats=on` — engagement stats (replies, reposts, quotes, likes, bookmarks, impressions) on every post (default)
+- `stats=root` — stats on the topmost returned post only; quoted/embedded posts count as non-root
+- `stats=off` — no stats anywhere (free of charge — stats never cost credits)
+- `metadata=on` — trailing **Thread Metadata** / **Article Metadata** sections with source URLs, capture time, and post provenance (default)
+- `metadata=off` — drop those sections (stats still render when `stats` allows them); combine with `userinfo=off&stats=off` for minimal, content-only Markdown
 
-**Response headers (agents):** `X-Tweetmd-Posts-Returned`, `X-Tweetmd-Credits-Charged`, `X-Tweetmd-Thread-Cap`, `X-Tweetmd-Cap-Hit` — never appended to the Markdown body.
+**Response headers (agents):** `X-Tweetmd-Posts-Returned`, `X-Tweetmd-Credits-Charged`, plus `X-Tweetmd-Thread-Cap` / `X-Tweetmd-Cap-Hit` when threading is on (`thread` ≠ `off`) and `X-Tweetmd-Credits-Would-Cost` on uncharged demo responses (what the request would have cost) — never appended to the Markdown body.
 
 ### Profile params
 
@@ -105,14 +112,15 @@ Append to any `https://tweet.md/{handle}` URL. Defaults: pinned post + 5 latest 
 | `latest` | `5` | `off`, or `5`–`50` |
 | `replies` | `off` | `off`, or `5`–`20` |
 | `articles` | `off` | `off`, or `5`–`20` |
+| `metadata` | `on` | `on`, `off` — `off` drops the profile stats/links/images block, keeping name, bio, and content sections |
 
-Profile fetching requires credits — no free tier.
+Profile fetching requires credits — only the controlled demo profile works without a key.
 
 ## Credits
 
 ### Post/thread credits
-- **1 credit** per post returned  
-- **+2 credits** per unique author when `userinfo=author` or `userinfo=all`  
+- **1 credit** per post returned (including first-level quoted posts and article-embedded posts rendered in full)  
+- **+2 credits** flat when `userinfo=author`; **+2 credits per unique author** when `userinfo=all`  
 
 ### Profile credits
 - **2 credits** for base profile (name, bio, stats, pics)  
@@ -121,18 +129,18 @@ Profile fetching requires credits — no free tier.
 
 ### Shared rules
 - Cache hits do **not** discount price — caching is internal, not a user benefit  
-- Free tier: `thread=off`, `userinfo=off`, 5/month per IP. **No profile access** on free tier.  
-- On `402` or `429`, send the user to checkout (see below)
+- No key: only the controlled demo resources respond (no charge; they carry `X-Tweetmd-Credits-Would-Cost` so you can gauge pricing). Everything else returns `402`.  
+- On `402`, send the user to checkout or https://tweet.md/i/login (see below)
 
-## Checkout (no API key yet)
+## Checkout
 
-Skip https://tweet.md/i/topup — link the user straight to Stripe:
+Link the user to a pack:
 
-- `https://tweet.md/i/checkout?pack=small` — $5 / 500 credits  
-- `https://tweet.md/i/checkout?pack=medium` — $19 / 2,200 credits (best value)  
-- `https://tweet.md/i/checkout?pack=big` — $49 / 6,000 credits  
+- `https://tweet.md/i/checkout?pack=small` — $5 / 300 credits  
+- `https://tweet.md/i/checkout?pack=medium` — $19 / 1,500 credits  
+- `https://tweet.md/i/checkout?pack=big` — $49 / 4,300 credits (best per-credit rate)  
 
-After payment, tweet.md **emails the API key** (`twmd_key_…`) to the address entered at checkout. Existing keys can top up the same way or via https://tweet.md/i/topup.
+A signed-in profile or an existing API-key session goes straight to Stripe as a top-up. New buyers are routed through profile login + onboarding with the chosen pack pre-selected. After payment, credits are granted via Stripe webhook; the browser session shows the API key (`twmd_key_…`) and it stays available in https://tweet.md/i/dashboard. The order email carries a receipt and a one-time profile-claim link — **raw API keys are never emailed**. Existing keys can also top up via https://tweet.md/i/topup.
 
 ## Examples
 
@@ -153,6 +161,10 @@ curl -sS -H "Authorization: Bearer twmd_key_..." \
 curl -sS -H "Authorization: Bearer twmd_key_..." \
   "https://tweet.md/jack/status/20?thread=all-200"
 
+# Minimal content-only thread for LLM context (no stats, author, or metadata sections)
+curl -sS -H "Authorization: Bearer twmd_key_..." \
+  "https://tweet.md/jack/status/20?userinfo=off&stats=off&metadata=off"
+
 # Profile (default: pinned + 5 latest)
 curl -sS -H "Authorization: Bearer twmd_key_..." \
   "https://tweet.md/jack"
@@ -164,19 +176,19 @@ curl -sS -H "Authorization: Bearer twmd_key_..." \
 
 ## X Articles
 
-Long-form posts (timeline link → `https://x.com/i/article/{id}`) are fetched via the X API `article` field on the same status lookup. No extra query param. Output adds an **Article:** block with title, article URL, and full `plainText` after the post text. Use the **status URL**, not the article URL alone. Repo: `docs/articles.md`.
+Long-form posts (timeline link → `https://x.com/i/article/{id}`) are fetched via the X API `article` field on the same status lookup. No extra query param. A single article post renders content-first: the article title is the document heading, the body keeps its real structure (headings, quotes, lists, inline links/media, code, tables, embedded posts), and author/source/stats trail in an **Article Metadata** section. Articles inside threads get the same trailing metadata section nested under their title. `metadata=off` omits the section — pure article content. Use the **status URL**, not the article URL alone. Repo: `docs/articles.md`.
 
 ## Errors
 
-Plain-text body (not JSON): `400` bad input · `401` bad key · `402` paid feature / no credits · `404` post unavailable · `429` free limit · `503` upstream/X API
+Plain-text body (not JSON): `400` bad input · `401` bad key · `402` credits required or insufficient (also any keyless request outside the demos) · `404` post unavailable · `503` upstream/X API
 
 ## Agent rules
 
-1. **Ask** for an existing `twmd_key_…` first. If the user has none (or hits `402`/`429`), link `https://tweet.md/i/checkout?pack=medium` (or `small` / `big`) — the key is emailed after payment.
+1. **Ask** for an existing `twmd_key_…` first. If the user has none (or hits `402`), link `https://tweet.md/i/checkout?pack=medium` (or `small` / `big`) — new buyers complete profile login + onboarding, then find the key in https://tweet.md/i/dashboard. Raw keys are never emailed.
 2. **Preserve** source URL, author, post ID, and platform attribution in downstream output.  
 3. **Prefer** `markdown` for agents and notes; `obsidian` when saving to a vault.  
 4. **Use** `/i/api/convert` when the user supplies a full `x.com`/`twitter.com` link; use path form when you already have handle and ID.  
-5. **For profiles:** replace `x.com/{handle}` with `tweet.md/{handle}` the same way you do for posts. Use `?latest=off&replies=off&articles=off` if the user only needs the bio and stats. Profiles require credits — no free tier.  
-6. **Check** auth on free tier — defaults are `thread=ancestors-20` and `userinfo=author` with a key (URL params override per-key dashboard defaults, which override these); free tier allows `thread=off` and `userinfo=off` only.  
+5. **For profiles:** replace `x.com/{handle}` with `tweet.md/{handle}` the same way you do for posts. Use `?latest=off&replies=off&articles=off` if the user only needs the bio and stats. Profiles require credits.  
+6. **Check** auth — without a key, only the controlled demos respond; everything else is `402`. With a key, defaults are `thread=branch-15`, `userinfo=author`, `stats=on`, and `metadata=on` (URL params override per-key dashboard defaults, which override these). Use `userinfo=off&stats=off&metadata=off` when the user only needs content for LLM context.  
 7. **Read** the `X-Tweetmd-*` response headers to see posts returned, credits charged, and whether the thread cap was hit — raise the `-N` cap and retry if `X-Tweetmd-Cap-Hit` is set and the user wants the full thread.  
-8. On failure, surface the response body; for credit/limit errors, link checkout and note the API key is emailed after payment.
+8. On failure, surface the response body; for credit errors, link checkout — new buyers sign in once and the key appears in their dashboard (never emailed).
