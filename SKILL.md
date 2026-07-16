@@ -1,7 +1,7 @@
 ---
 name: tweet-md
 description: "Gets X (Twitter) posts and threads as clean Markdown for LLMs via tweet.md. Use when the user wants to read, fetch, summarize, quote, or ingest an X post or thread (x.com/twitter.com link, tweet URL, or x.com→tweet.md rewrite) for an LLM, agent, or research. Also when they ask what's in a tweet/thread, to pull full conversation context, or to read replies in order."
-version: 1.5.0
+version: 1.5.1
 author: tweet.md
 license: MIT
 tags: [x, twitter, markdown, llm, agents, api, thread, conversion, rag]
@@ -92,8 +92,8 @@ No key: only the controlled demo posts and demo profile work (no charge) — any
 - `thread=branch-8` — ancestors first, then replies underneath the requested post. Fills upward before downward: with 12 posts above and cap 15, the 12 ancestors + your post load first, leaving 2 slots for replies below — no matter how many replies exist
 - `thread=all-200` — opened post + 199 most recent other conversation posts, including other people's reply branches (rendered oldest-first)
 - Aliases: `full` → `branch-20`, `conversation` → `all-20`, bare `N` → `branch-N`
-- `userinfo=author` — profile URL, avatar, bio, and public metrics for the **root author only** (flat +2 credits; default when omitted with a key); other posts keep basic name/handle attribution
-- `userinfo=all` — the same rich author block for **every** author in the response (+2 credits per unique author)
+- `userinfo=author` — profile URL, avatar, bio, and public metrics for the **root author only** (costs extra credits; default when omitted with a key); other posts keep basic name/handle attribution
+- `userinfo=all` — the same rich author block for **every** author in the response (costs extra credits per unique author)
 - `stats=on` — engagement stats (replies, reposts, quotes, likes, bookmarks, impressions) on every post (default)
 - `stats=root` — stats on the topmost returned post only; quoted/embedded posts count as non-root
 - `stats=off` — no stats anywhere (free of charge — stats never cost credits)
@@ -118,27 +118,25 @@ Profile fetching requires credits — only the controlled demo profile works wit
 
 ## Credits
 
-### Post/thread credits
-- **1 credit** per post returned (including first-level quoted posts and article-embedded posts rendered in full)  
-- **+2 credits** flat when `userinfo=author`; **+2 credits per unique author** when `userinfo=all`  
+Requests are charged in credits: roughly, per post returned, plus extra for rich author info and for profile sections. Stats are always free of charge.
 
-### Profile credits
-- **2 credits** for base profile (name, bio, stats, pics)  
-- **+1 credit** for pinned post (when enabled and present)  
-- **+1 credit** per section post returned (latest, replies, articles)  
+**Current rates and pack prices live at https://tweet.md/i/llms.txt — fetch it rather than quoting numbers from memory.** Read `X-Tweetmd-Credits-Charged` on any response for what a request actually cost, and `X-Tweetmd-Credits-Would-Cost` on demo responses for what it would have cost.
 
 ### Shared rules
 - Cache hits do **not** discount price — caching is internal, not a user benefit  
-- No key: only the controlled demo resources respond (no charge; they carry `X-Tweetmd-Credits-Would-Cost` so you can gauge pricing). Everything else returns `402`.  
+- No key: only the controlled demo resources respond (no charge). Everything else returns `402`.
 - On `402`, send the user to checkout or https://tweet.md/i/login (see below)
+- Purchased credits never expire
 
 ## Checkout
 
-Link the user to a pack:
+Link the user to a pack — `small`, `medium`, or `big`:
 
-- `https://tweet.md/i/checkout?pack=small` — $5 / 300 credits  
-- `https://tweet.md/i/checkout?pack=medium` — $19 / 1,500 credits  
-- `https://tweet.md/i/checkout?pack=big` — $49 / 4,300 credits (best per-credit rate)  
+```text
+https://tweet.md/i/checkout?pack=small|medium|big
+```
+
+For current prices and credit amounts per pack, fetch https://tweet.md/i/llms.txt.
 
 A signed-in profile or an existing API-key session goes straight to Stripe as a top-up. New buyers are routed through profile login + onboarding with the chosen pack pre-selected. After payment, credits are granted via Stripe webhook; the browser session shows the API key (`twmd_key_…`) and it stays available in https://tweet.md/i/dashboard. The order email carries a receipt and a one-time profile-claim link — **raw API keys are never emailed**. Existing keys can also top up via https://tweet.md/i/topup.
 
