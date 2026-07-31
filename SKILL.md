@@ -1,7 +1,7 @@
 ---
 name: tweet-md
 description: "Gets X (Twitter) posts and threads as clean Markdown for LLMs via tweet.md. Use when the user wants to read, fetch, summarize, quote, or ingest an X post or thread (x.com/twitter.com link, tweet URL, or x.com→tweet.md rewrite) for an LLM, agent, or research. Also when they ask what's in a tweet/thread, to pull full conversation context, or to read replies in order."
-version: 1.6.0
+version: 1.7.0
 author: tweet.md
 license: MIT
 tags: [x, twitter, markdown, llm, agents, api, thread, conversion, rag]
@@ -23,6 +23,8 @@ triggers:
   - fetch profile / user profile
   - get bio / profile info
   - x.com or twitter.com profile URL
+  - is this account verified / official / real
+  - who is this account affiliated with
 ---
 
 # tweet.md
@@ -92,7 +94,7 @@ No key: only the controlled demo posts and demo profile work (no charge) — any
 - `thread=branch-15` — ancestors first, then replies underneath the requested post. Fills upward before downward: with 12 posts above and cap 15, the 12 ancestors + your post load first, leaving 2 slots for replies below — no matter how many replies exist. The default cap of 5 is deliberately tight; pass a bigger `-N` for long conversations
 - `thread=all-200` — opened post + 199 most recent other conversation posts, including other people's reply branches (rendered oldest-first)
 - Aliases: `full` → `branch-20`, `conversation` → `all-20`, bare `N` → `branch-N`
-- `userinfo=author` — profile URL, avatar, bio, and public metrics for the **root author only** (costs extra credits; default when omitted with a key); other posts keep basic name/handle attribution
+- `userinfo=author` — full `Author:` block for the **root author only** (costs extra credits; default when omitted with a key): profile URL, avatar, bio, public metrics, plus the identity lines below; other posts keep basic name/handle attribution
 - `userinfo=all` — the same rich author block for **every** author in the response (costs extra credits per unique author)
 - `stats=on` — engagement stats (replies, reposts, quotes, likes, bookmarks, impressions) on every post (default)
 - `stats=root` — stats on the topmost returned post only; quoted/embedded posts count as non-root
@@ -112,7 +114,7 @@ Append to any `https://tweet.md/{handle}` URL. Defaults: pinned post + the 10 mo
 | `max` | `10` | `10`–`500` |
 | `replies` | `off` | `on`, `off` |
 | `retweets` | `off` | `on`, `off` |
-| `metadata` | `on` | `on`, `off` — `off` drops the profile stats/links/images block, keeping name, bio, and the timeline |
+| `metadata` | `on` | `on`, `off` — `off` drops the profile stats/account/links/images block, keeping name, bio, and the timeline |
 
 - `max` — how many timeline posts to return, newest first. There is no `off`; the floor is 10
 - `replies=on` / `retweets=on` — fold the profile's own replies and reposts into that same timeline. With both `off` you get original posts only. These map onto filters X applies server-side, so a request never pays for posts it does not return
@@ -122,6 +124,15 @@ Append to any `https://tweet.md/{handle}` URL. Defaults: pinned post + the 10 mo
 Profile fetching requires credits — only the controlled demo profile works without a key.
 
 **Retired params:** `latest`, `articles`, and the numeric `replies=N` form are gone. `latest` and `articles` are now ignored; `replies` and `retweets` accept only `on`/`off`, so `replies=5` returns `400`. Long-form X Articles are unaffected as posts — converting one from its status URL still returns the full article.
+
+### Identity signals (verification, affiliation)
+
+Author and profile blocks carry account-level identity fields at no extra credit cost — they ride along on the user lookup that `userinfo` (or the profile fetch itself) already pays for.
+
+- On a **post**: inside the `Author:` block, so they need `userinfo=author` (default) or `userinfo=all` — `userinfo=off` drops them. Lines: `Verified: yes (blue|government|business)` or `no`, `Protected:`, `Affiliated with:`, `Location:`, `Joined:`
+- On a **profile**: an `**Account:**` block under the stats — `Verified:`, `Protected:`, `Affiliated with:` (location and join date already have their own lines). `metadata=off` drops the block. In `format=obsidian`, the same values are also frontmatter keys (`verified`, `verified_type`, `protected`, `location`, `affiliation`) so a vault query can filter on them
+- Every line is always present, defaults included — `Verified: no` means the account is not verified, never "not fetched". Use this to tell an official account from a lookalike without a second lookup
+- `Affiliated with:` is the org badge next to the handle, rendered as `Org name (https://x.com/org)` or `none`
 
 ## Credits
 
@@ -198,6 +209,7 @@ Plain-text body (not JSON): `400` bad input · `401` bad key · `402` credits re
 3. **Prefer** `markdown` for agents and notes; `obsidian` when saving to a vault.  
 4. **Use** `/i/api/convert` when the user supplies a full `x.com`/`twitter.com` link; use path form when you already have handle and ID.  
 5. **For profiles:** replace `x.com/{handle}` with `tweet.md/{handle}` the same way you do for posts. `max` has a floor of 10, so there is no bio-only request — use `?pinnedpost=off&max=10` when the user mainly wants the bio and stats, and raise `max` (up to 500) only when they actually want the timeline, since every returned post costs a credit. Add `replies=on` / `retweets=on` when the user asks about someone's replies or what they amplify. Profiles require credits.  
-6. **Check** auth — without a key, only the controlled demos respond; everything else is `402`. With a key, defaults are `thread=branch-5`, `userinfo=author`, `stats=on`, and `metadata=on` (URL params override per-key dashboard defaults, which override these). Use `userinfo=off&stats=off&metadata=off` when the user only needs content for LLM context.  
-7. **Read** the `X-Tweetmd-*` response headers to see posts returned, credits charged, and whether the thread cap was hit — raise the `-N` cap and retry if `X-Tweetmd-Cap-Hit` is set and the user wants the full thread. The default `branch-5` hits the cap on any longer conversation, so pass an explicit `thread=branch-N` up front when the user asks for a whole thread.  
-8. On failure, surface the response body; for credit errors, link checkout — new buyers sign in once and the key appears in their dashboard (never emailed).
+6. **For "is this account real / official / verified?"** — the answer is already in the response you have: the profile's `**Account:**` block, or a post's `Author:` block with `userinfo=author`. Verification (and its kind), protected status, and org affiliation cost nothing extra and are always printed, so `Verified: no` is an answer, not missing data. Do not make a second request for it.  
+7. **Check** auth — without a key, only the controlled demos respond; everything else is `402`. With a key, defaults are `thread=branch-5`, `userinfo=author`, `stats=on`, and `metadata=on` (URL params override per-key dashboard defaults, which override these). Use `userinfo=off&stats=off&metadata=off` when the user only needs content for LLM context.  
+8. **Read** the `X-Tweetmd-*` response headers to see posts returned, credits charged, and whether the thread cap was hit — raise the `-N` cap and retry if `X-Tweetmd-Cap-Hit` is set and the user wants the full thread. The default `branch-5` hits the cap on any longer conversation, so pass an explicit `thread=branch-N` up front when the user asks for a whole thread.  
+9. On failure, surface the response body; for credit errors, link checkout — new buyers sign in once and the key appears in their dashboard (never emailed).
