@@ -1,7 +1,7 @@
 ---
 name: tweet-md
 description: "Gets X (Twitter) posts and threads as clean Markdown for LLMs via tweet.md. Use when the user wants to read, fetch, summarize, quote, or ingest an X post or thread (x.com/twitter.com link, tweet URL, or x.com→tweet.md rewrite) for an LLM, agent, or research. Also when they ask what's in a tweet/thread, to pull full conversation context, or to read replies in order."
-version: 1.5.1
+version: 1.5.2
 author: tweet.md
 license: MIT
 tags: [x, twitter, markdown, llm, agents, api, thread, conversion, rag]
@@ -63,7 +63,7 @@ https://x.com/jack/status/20
 
 **Programmatic:** `twmd_key_...` via `Authorization: Bearer ...` or `?apikey=`.
 
-No key: only the controlled demo posts and demo profile work (no charge) — any other resource returns `402` with a pointer to https://tweet.md/i/login. With a key, omitted `thread` / `userinfo` / `stats` / `metadata` default to `branch-15` / `author` / `on` / `on`.
+No key: only the controlled demo posts and demo profile work (no charge) — any other resource returns `402` with a pointer to https://tweet.md/i/login. With a key, omitted `thread` / `userinfo` / `stats` / `metadata` default to `branch-5` / `author` / `on` / `on` — raise the thread cap explicitly (e.g. `thread=branch-20`) when you need more of the conversation.
 
 ## Pick `format`
 
@@ -79,7 +79,7 @@ No key: only the controlled demo posts and demo profile work (no charge) — any
 | Param | Default | Values |
 |-------|---------|--------|
 | `format` | `markdown` | `markdown`, `obsidian` |
-| `thread` | `branch-15` | `off`, `ancestors[-N]`, `branch[-N]`, `all[-N]` (cap `2`–`500`, default N=20) |
+| `thread` | `branch-5` | `off`, `ancestors[-N]`, `branch[-N]`, `all[-N]` (cap `2`–`500`, default N=20) |
 | `userinfo` | `author` | `off`, `author`, `all` |
 | `stats` | `on` | `off`, `root`, `on` |
 | `metadata` | `on` | `on`, `off` |
@@ -89,7 +89,7 @@ No key: only the controlled demo posts and demo profile work (no charge) — any
 
 - `thread=off` — single post only
 - `thread=ancestors-11` — opened post + up to 10 ancestors (reply chain up to the original post; cap includes the requested post)
-- `thread=branch-8` — ancestors first, then replies underneath the requested post. Fills upward before downward: with 12 posts above and cap 15, the 12 ancestors + your post load first, leaving 2 slots for replies below — no matter how many replies exist
+- `thread=branch-15` — ancestors first, then replies underneath the requested post. Fills upward before downward: with 12 posts above and cap 15, the 12 ancestors + your post load first, leaving 2 slots for replies below — no matter how many replies exist. The default cap of 5 is deliberately tight; pass a bigger `-N` for long conversations
 - `thread=all-200` — opened post + 199 most recent other conversation posts, including other people's reply branches (rendered oldest-first)
 - Aliases: `full` → `branch-20`, `conversation` → `all-20`, bare `N` → `branch-N`
 - `userinfo=author` — profile URL, avatar, bio, and public metrics for the **root author only** (costs extra credits; default when omitted with a key); other posts keep basic name/handle attribution
@@ -187,6 +187,6 @@ Plain-text body (not JSON): `400` bad input · `401` bad key · `402` credits re
 3. **Prefer** `markdown` for agents and notes; `obsidian` when saving to a vault.  
 4. **Use** `/i/api/convert` when the user supplies a full `x.com`/`twitter.com` link; use path form when you already have handle and ID.  
 5. **For profiles:** replace `x.com/{handle}` with `tweet.md/{handle}` the same way you do for posts. Use `?latest=off&replies=off&articles=off` if the user only needs the bio and stats. Profiles require credits.  
-6. **Check** auth — without a key, only the controlled demos respond; everything else is `402`. With a key, defaults are `thread=branch-15`, `userinfo=author`, `stats=on`, and `metadata=on` (URL params override per-key dashboard defaults, which override these). Use `userinfo=off&stats=off&metadata=off` when the user only needs content for LLM context.  
-7. **Read** the `X-Tweetmd-*` response headers to see posts returned, credits charged, and whether the thread cap was hit — raise the `-N` cap and retry if `X-Tweetmd-Cap-Hit` is set and the user wants the full thread.  
+6. **Check** auth — without a key, only the controlled demos respond; everything else is `402`. With a key, defaults are `thread=branch-5`, `userinfo=author`, `stats=on`, and `metadata=on` (URL params override per-key dashboard defaults, which override these). Use `userinfo=off&stats=off&metadata=off` when the user only needs content for LLM context.  
+7. **Read** the `X-Tweetmd-*` response headers to see posts returned, credits charged, and whether the thread cap was hit — raise the `-N` cap and retry if `X-Tweetmd-Cap-Hit` is set and the user wants the full thread. The default `branch-5` hits the cap on any longer conversation, so pass an explicit `thread=branch-N` up front when the user asks for a whole thread.  
 8. On failure, surface the response body; for credit errors, link checkout — new buyers sign in once and the key appears in their dashboard (never emailed).
