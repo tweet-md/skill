@@ -43,7 +43,7 @@ The agent should use tweet.md to return clean Markdown instead of messy copied t
 * Threads
 * Quoted posts
 * X Articles / long-form posts
-* Profile fetching (bio, stats, pinned + recent posts)
+* Profile fetching (bio, stats, pinned post, and a timeline of recent posts — replies and reposts optional)
 * Markdown output
 * Obsidian-friendly Markdown
 * Browser URL rewriting from `x.com` or `twitter.com` to `tweet.md`

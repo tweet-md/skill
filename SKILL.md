@@ -1,7 +1,7 @@
 ---
 name: tweet-md
 description: "Gets X (Twitter) posts and threads as clean Markdown for LLMs via tweet.md. Use when the user wants to read, fetch, summarize, quote, or ingest an X post or thread (x.com/twitter.com link, tweet URL, or x.com→tweet.md rewrite) for an LLM, agent, or research. Also when they ask what's in a tweet/thread, to pull full conversation context, or to read replies in order."
-version: 1.5.2
+version: 1.6.0
 author: tweet.md
 license: MIT
 tags: [x, twitter, markdown, llm, agents, api, thread, conversion, rag]
@@ -104,21 +104,28 @@ No key: only the controlled demo posts and demo profile work (no charge) — any
 
 ### Profile params
 
-Append to any `https://tweet.md/{handle}` URL. Defaults: pinned post + 5 latest posts; replies and articles off.
+Append to any `https://tweet.md/{handle}` URL. Defaults: pinned post + the 10 most recent original posts; replies and reposts off.
 
 | Param | Default | Values |
 |-------|---------|--------|
 | `pinnedpost` | `on` | `on`, `off` |
-| `latest` | `5` | `off`, or `5`–`50` |
-| `replies` | `off` | `off`, or `5`–`20` |
-| `articles` | `off` | `off`, or `5`–`20` |
-| `metadata` | `on` | `on`, `off` — `off` drops the profile stats/links/images block, keeping name, bio, and content sections |
+| `max` | `10` | `10`–`500` |
+| `replies` | `off` | `on`, `off` |
+| `retweets` | `off` | `on`, `off` |
+| `metadata` | `on` | `on`, `off` — `off` drops the profile stats/links/images block, keeping name, bio, and the timeline |
+
+- `max` — how many timeline posts to return, newest first. There is no `off`; the floor is 10
+- `replies=on` / `retweets=on` — fold the profile's own replies and reposts into that same timeline. With both `off` you get original posts only. These map onto filters X applies server-side, so a request never pays for posts it does not return
+- Every timeline entry is labelled in its heading: `# 📝 Post 3/15`, `# 💬 Reply 4/15 → @handle` (the account replied to), or `# 🔁 Repost 5/15 → @handle` (the account reposted). A repost renders the **original** post's text, byline, media, and stats — not the `RT @…` wrapper. Quote posts count as originals
+- Billing follows the posts actually returned, so a sparse timeline costs less than `max`
 
 Profile fetching requires credits — only the controlled demo profile works without a key.
 
+**Retired params:** `latest`, `articles`, and the numeric `replies=N` form are gone. `latest` and `articles` are now ignored; `replies` and `retweets` accept only `on`/`off`, so `replies=5` returns `400`. Long-form X Articles are unaffected as posts — converting one from its status URL still returns the full article.
+
 ## Credits
 
-Requests are charged in credits: roughly, per post returned, plus extra for rich author info and for profile sections. Stats are always free of charge.
+Requests are charged in credits: roughly, per post returned, plus extra for rich author info and for the profile itself. Stats are always free of charge.
 
 **Current rates and pack prices live at https://tweet.md/i/llms.txt — fetch it rather than quoting numbers from memory.** Read `X-Tweetmd-Credits-Charged` on any response for what a request actually cost, and `X-Tweetmd-Credits-Would-Cost` on demo responses for what it would have cost.
 
@@ -163,13 +170,17 @@ curl -sS -H "Authorization: Bearer twmd_key_..." \
 curl -sS -H "Authorization: Bearer twmd_key_..." \
   "https://tweet.md/jack/status/20?userinfo=off&stats=off&metadata=off"
 
-# Profile (default: pinned + 5 latest)
+# Profile (default: pinned post + 10 most recent original posts)
 curl -sS -H "Authorization: Bearer twmd_key_..." \
   "https://tweet.md/jack"
 
-# Profile with custom sections
+# Longer timeline, with the profile's replies and reposts mixed in
 curl -sS -H "Authorization: Bearer twmd_key_..." \
-  "https://tweet.md/jack?latest=10&replies=5&articles=5"
+  "https://tweet.md/jack?max=50&replies=on&retweets=on"
+
+# Cheapest profile read — bio and stats with the shortest timeline
+curl -sS -H "Authorization: Bearer twmd_key_..." \
+  "https://tweet.md/jack?pinnedpost=off&max=10"
 ```
 
 ## X Articles
@@ -186,7 +197,7 @@ Plain-text body (not JSON): `400` bad input · `401` bad key · `402` credits re
 2. **Preserve** source URL, author, post ID, and platform attribution in downstream output.  
 3. **Prefer** `markdown` for agents and notes; `obsidian` when saving to a vault.  
 4. **Use** `/i/api/convert` when the user supplies a full `x.com`/`twitter.com` link; use path form when you already have handle and ID.  
-5. **For profiles:** replace `x.com/{handle}` with `tweet.md/{handle}` the same way you do for posts. Use `?latest=off&replies=off&articles=off` if the user only needs the bio and stats. Profiles require credits.  
+5. **For profiles:** replace `x.com/{handle}` with `tweet.md/{handle}` the same way you do for posts. `max` has a floor of 10, so there is no bio-only request — use `?pinnedpost=off&max=10` when the user mainly wants the bio and stats, and raise `max` (up to 500) only when they actually want the timeline, since every returned post costs a credit. Add `replies=on` / `retweets=on` when the user asks about someone's replies or what they amplify. Profiles require credits.  
 6. **Check** auth — without a key, only the controlled demos respond; everything else is `402`. With a key, defaults are `thread=branch-5`, `userinfo=author`, `stats=on`, and `metadata=on` (URL params override per-key dashboard defaults, which override these). Use `userinfo=off&stats=off&metadata=off` when the user only needs content for LLM context.  
 7. **Read** the `X-Tweetmd-*` response headers to see posts returned, credits charged, and whether the thread cap was hit — raise the `-N` cap and retry if `X-Tweetmd-Cap-Hit` is set and the user wants the full thread. The default `branch-5` hits the cap on any longer conversation, so pass an explicit `thread=branch-N` up front when the user asks for a whole thread.  
 8. On failure, surface the response body; for credit errors, link checkout — new buyers sign in once and the key appears in their dashboard (never emailed).
