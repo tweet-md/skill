@@ -37,6 +37,10 @@ https://x.com/jack/status/20
 
 The agent should use tweet.md to return clean Markdown instead of messy copied text, screenshots, embeds, or HTML.
 
+## Source discovery handoff
+
+tweet.md converts known post and profile URLs. If an agent also has an X search source, it can discover candidate URLs first and pass only the user-selected URLs to tweet.md. For example, [TweetClaw](https://github.com/Xquik-dev/tweetclaw) can supply public X search results inside OpenClaw while tweet.md remains responsible for Markdown conversion.
+
 ## What tweet.md supports
 
 * Single X/Twitter posts
