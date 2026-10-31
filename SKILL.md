@@ -1,7 +1,7 @@
 ---
 name: tweet-md
 description: "Gets X (Twitter) posts and threads as clean Markdown for LLMs via tweet.md. Use when the user wants to read, fetch, summarize, quote, or ingest an X post or thread (x.com/twitter.com link, tweet URL, or x.com→tweet.md rewrite) for an LLM, agent, or research. Also when they ask what's in a tweet/thread, to pull full conversation context, or to read replies in order."
-version: 1.7.0
+version: 1.7.1
 author: tweet.md
 license: MIT
 tags: [x, twitter, markdown, llm, agents, api, thread, conversion, rag]
@@ -25,6 +25,7 @@ triggers:
   - x.com or twitter.com profile URL
   - is this account verified / official / real
   - who is this account affiliated with
+  - user names the tweet-md / tweet.md skill
 ---
 
 # tweet.md
@@ -36,7 +37,9 @@ X posts as clean Markdown for LLMs (`text/markdown`). No JSON.
 
 ## When to invoke
 
-Apply when user intent matches any **trigger** in the frontmatter above.
+Apply when user intent matches any **trigger** in the frontmatter above, including when the user names this skill ("use tweet-md to read …").
+
+**No URL in the message?** Use an X link from the quoted or replied-to message only if your host actually included that text in the conversation; otherwise ask for the link. Never guess which post was meant.
 
 **Do not invoke** for: drafting or posting tweets, engagement metrics only, X developer app setup, or JSON API consumers (`format=json` is rejected).
 
@@ -201,6 +204,8 @@ Long-form posts (timeline link → `https://x.com/i/article/{id}`) are fetched v
 ## Errors
 
 Plain-text body (not JSON): `400` bad input · `401` bad key · `402` credits required or insufficient (also any keyless request outside the demos) · `404` post unavailable · `503` upstream/X API
+
+**Cloudflare `403` Error 1010 (`browser_signature_banned`)** is not from tweet.md: Cloudflare blocks some default HTTP-client signatures, such as Python `urllib`'s `Python-urllib/x.y` user agent, before the request arrives. Fetch with `curl` as in the examples, or send an explicit `User-Agent` header. Don't report the post or key as bad.
 
 ## Agent rules
 

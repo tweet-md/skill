@@ -37,6 +37,26 @@ https://x.com/jack/status/20
 
 The agent should use tweet.md to return clean Markdown instead of messy copied text, screenshots, embeds, or HTML.
 
+Put the link in the same message as the request, including queued or scheduled chat commands:
+
+```txt
+/queue use tweet-md to read https://x.com/jack/status/20
+```
+
+Replying to a message that contains the link only works when your agent passes the replied-to text into the turn.
+
+### Hermes Agent: skill seems not to load
+
+Hermes resolves skills by their frontmatter `name`. If two different copies named `tweet-md` sit in the same skills directory, for example `~/.hermes/skills/tweet-md` and `~/.hermes/skills/social-media/tweet-md`, Hermes treats the bare name as ambiguous:
+
+* `skill_view("tweet-md")` is refused.
+* No `/tweet-md` command is registered.
+* `hermes skills list` shows only the categorized path. A copy at the top level can't be loaded by any name.
+
+Keep a single copy. Afterwards, `hermes skills list` should show one `tweet-md` row.
+
+On Telegram, Hermes includes the replied-to message's text in the turn, `/queue` included. If you quote only part of that message, only the quoted part is passed.
+
 ## What tweet.md supports
 
 * Single X/Twitter posts
